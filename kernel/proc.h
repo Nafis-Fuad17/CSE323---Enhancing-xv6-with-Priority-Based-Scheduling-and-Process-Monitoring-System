@@ -91,6 +91,10 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+  int priority;       // scheduling priority: 0 (lowest) to 10 (highest), default 5
+  int wait_ticks;     // how many scheduler ticks this process has been waiting (for aging)
+  int cpu_ticks;      // total CPU ticks consumed (for ps display)
+
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
@@ -105,3 +109,6 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 };
+
+ // Used by getprocs() syscall to send process info to user space
+#include "procinfo.h"

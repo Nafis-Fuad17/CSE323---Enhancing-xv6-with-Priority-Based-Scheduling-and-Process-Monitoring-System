@@ -123,6 +123,9 @@ allocproc(void)
 
 found:
   p->pid = allocpid();
+  p->priority = 5;     // default priority (middle of 0-10 range)
+  p->wait_ticks = 0;
+  p->cpu_ticks = 0;
   p->state = USED;
 
   // Allocate a trapframe page.
@@ -425,6 +428,7 @@ void
 scheduler(void)
 {
   struct proc *p;
+  struct proc *chosen;
   struct cpu *c = mycpu();
 
   c->proc = 0;
@@ -437,38 +441,51 @@ scheduler(void)
     intr_on();
     intr_off();
 
-    int found = 0;
+  // Aging: boost priority of processes waiting too long   
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+       p->wait_ticks++;
+        if(p->wait_ticks >= 50 && p->priority < 10){
+          p->priority++;
+          p->wait_ticks = 0;
+        }
       }
       release(&p->lock);
     }
-    if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
+
+  // Pick highest-priority RUNNABLE process
+    chosen = 0;
+    for(p = proc; p < &proc[NPROC]; p++){
+      acquire(&p->lock);
+      if(p->state == RUNNABLE){
+        if(chosen == 0 || p->priority > chosen->priority){
+          if(chosen != 0)
+            release(&chosen->lock);
+          chosen = p;
+        } else {
+          release(&p->lock);
+        }
+      } else {
+        release(&p->lock);
+      }
+    }
+
+    if(chosen != 0){
+      chosen->state = RUNNING;
+      chosen->wait_ticks = 0;
+      chosen->cpu_ticks++;
+      c->proc = chosen;
+      swtch(&c->context, &chosen->context);
+      c->proc = 0;
+      release(&chosen->lock);
+    } else {
+      // nothing to run; stop running on this core until an interrupt
       asm volatile("wfi");
     }
   }
-}
+}  
 
-// Switch to scheduler.  Must hold only p->lock
-// and have changed proc->state. Saves and restores
-// intena because intena is a property of this
-// kernel thread, not this CPU. It should
-// be proc->intena and proc->noff, but that would
-// break in the few places where a lock is held but
-// there's no process.
 void
 sched(void)
 {

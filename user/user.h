@@ -1,6 +1,7 @@
 #define SBRK_ERROR ((char *)-1)
 
 struct stat;
+struct procinfo;  // forward declaration
 
 // system calls
 int fork(void);
@@ -23,6 +24,8 @@ int dup(int);
 int getpid(void);
 char* sys_sbrk(int,int);
 int pause(int);
+int setpriority(int, int);
+int getprocs(struct procinfo*, int);
 int uptime(void);
 
 // ulib.c

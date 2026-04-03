@@ -6,6 +6,9 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "procinfo.h"
+
+extern struct proc proc[];
 
 uint64
 sys_exit(void)
@@ -106,4 +109,77 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+// setpriority(int pid, int priority)
+// Sets the priority of process <pid> to <priority> (0-10).
+// Returns 0 on success, -1 if pid not found or priority out of range.
+uint64
+sys_setpriority(void)
+{
+  int pid, priority;
+  argint(0, &pid);
+  argint(1, &priority);
+
+  if(priority < 0 || priority > 10)
+    return -1;
+
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->pid == pid){
+      p->priority = priority;
+      release(&p->lock);
+      return 0;
+    }
+    release(&p->lock);
+  }
+  return -1;  // pid not found
+}
+
+// getprocs(struct procinfo *buf, int max)
+// Fills buf with info about up to <max> active processes.
+// Returns the number of entries written.
+uint64
+sys_getprocs(void)
+{
+  uint64 addr;
+  int max;
+  argaddr(0, &addr);
+  argint(1, &max);
+
+  struct proc *p;
+  struct procinfo info;
+  int count = 0;
+
+  // State names matching the procstate enum
+  static char *states[] = {
+    [UNUSED]    "unused",
+    [USED]      "used",
+    [SLEEPING]  "sleep",
+    [RUNNABLE]  "runnable",
+    [RUNNING]   "running",
+    [ZOMBIE]    "zombie",
+  };
+
+  for(p = proc; p < &proc[NPROC] && count < max; p++){
+    acquire(&p->lock);
+    if(p->state != UNUSED && p->state != USED){
+      info.pid      = p->pid;
+      info.ppid     = p->parent ? p->parent->pid : 0;
+      info.priority = p->priority;
+      info.cpu_ticks = p->cpu_ticks;
+      safestrcpy(info.name, p->name, sizeof(info.name));
+      safestrcpy(info.state, states[p->state], sizeof(info.state));
+
+      // Copy this entry to user space
+      if(copyout(myproc()->pagetable, addr + count * sizeof(info),
+                 (char*)&info, sizeof(info)) < 0){
+        release(&p->lock);
+        break;
+      }
+      count++;
+    }
+    release(&p->lock);
+  }
+  return count;
 }
