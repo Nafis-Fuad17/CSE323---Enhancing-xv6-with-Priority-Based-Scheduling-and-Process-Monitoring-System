@@ -147,7 +147,7 @@ UPROGS=\
 	$U/_dorphan\
         $U/_ps\
 	$U/_setprio\
-        
+        $U/_priotest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
