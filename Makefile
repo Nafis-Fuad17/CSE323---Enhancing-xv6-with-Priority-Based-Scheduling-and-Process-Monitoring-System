@@ -148,6 +148,7 @@ UPROGS=\
         $U/_ps\
 	$U/_setprio\
         $U/_priotest\
+        $U/_pstree\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

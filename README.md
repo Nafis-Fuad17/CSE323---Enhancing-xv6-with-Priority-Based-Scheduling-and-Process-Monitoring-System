@@ -60,6 +60,16 @@ PID PPID STATE      NAME       PRIORITY CPU_TICKS
 2   1    sleep      sh         5        21
 5   2    running    ps         5        1
 
+### Demo — pstree output
+
+```
+=== Process Tree ===
+[0] kernel
+  |-- [1] init (priority=5)
+    |-- [2] sh (priority=5)
+      |-- [3] pstree (priority=5)
+```
+
 ## Setup & Running
 ```bash
 # Install dependencies
@@ -82,6 +92,9 @@ make qemu CPUS=1
 
 # Show all processes
 $ ps
+
+# Show process tree (parent-child relationships)
+$ pstree
 
 # Set priority of a process (0=lowest, 10=highest)
 $ setprio <pid> <priority>
@@ -107,4 +120,5 @@ $ priotest
 | `user/ps.c` | New: `ps` command |
 | `user/setprio.c` | New: `setprio` command |
 | `user/priotest.c` | New: priority scheduler demo/test |
-| `Makefile` | Registered `ps`, `setprio`, `priotest` |
+| `user/pstree.c` | New: `pstree` command showing process parent-child tree |
+| `Makefile` | Registered `ps`, `setprio`, `priotest`, `pstree` |
